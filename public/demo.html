@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Сервис Города</title>
+</head>
+<body>
+	<form>
+		<label><input type="radio" name="parent" value="0c5b2444-70a0-4932-980c-b4dc0d3f02b5" checked>Москва</label>
+		<label><input type="radio" name="parent" value="963073ee-4dfc-48bd-9a70-d2dfc6bd1f31">Рязанская область</label>
+		<label><input type="radio" name="parent" value="86e5bae4-ef58-4031-b34f-5e9ff914cd55">Рязань</label>
+		<br>
+		<input type="text" id="address" style="width: 400px;">
+		<div id="hints"></div>
+	</form>
+
+	<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script>
+		$(document).ready(function(){
+			$('[name="parent"]').change(function(){
+				$('#address').val('');
+				$('#hints').html('');
+			});
+			
+			$('#address').on('input', function(){
+				sendRec();
+			});
+			
+function sendRec() {
+	$.ajax({
+		url: '/index.php',
+		data: {
+			aoguid: $('[name="parent"]:checked').val(),
+			str: $('#address').val(),
+		},
+		success: function(data) {
+			console.log(data);
+			if (data.success) {
+				$('#hints').html('');
+				if (data.final) {
+					$('#hints').html('Полный адрес');
+				} else {
+					$.each(data.items, function(k, v) {
+						$('#hints').append('<div class="hint" style="cursor: pointer;">' + v + '</div>');
+					});
+				}
+			}
+		}
+	});
+}
+			
+			$(document).on('click', '.hint', function(){
+				$('#address').val($(this).text());
+				sendRec();
+				$('#hints').html('');
+			});
+		});
+    </script>
+</body>
+</html>
