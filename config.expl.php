@@ -1,9 +1,25 @@
 <?php
 
-const DBSTRING = 'pgsql:...';
+/*
+ * DB connection string.
+ */
 
-// Минимальная длина поисковой фразы для подсказок
+const DBSTRING = 'pgsql:host=localhost;port=5432;dbname=fias;user=fias;password=123456';
+
+/*
+ * The minimum length of the search phrase for tips.
+ */
+
 const MIN_LENGTH = 3;
 
-// Количество выводимых подсказок по умолчанию
+/*
+ * The number of tips by default.
+ */
+
 const COUNT_HINTS = 10;
+
+/*
+ * The max number of tips.
+ */
+
+const MAX_COUNT_HINTS = 20;

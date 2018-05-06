@@ -1,4 +1,9 @@
 <?php
+/*
+
+Искать внутри последнего точного совпадения - если есть - не обязательно в родительском или финальном.
+
+*/
 
 require_once realpath(__DIR__ . '/../config.php');
 
@@ -9,10 +14,19 @@ try {
 
 	$aoguid = $_GET['aoguid'];
 	$str = $_GET['str'];
+	if (!isset($_GET['count'])) {
+		$limit = COUNT_HINTS;
+	} elseif (($limit = intval($_GET['count'])) < 1) {
+		$limit = 1;
+	} elseif ($limit > MAX_COUNT_HINTS) {
+		$limit = MAX_COUNT_HINTS;
+	}
 	
-	if (!is_string($str)) {
+	if (!is_string($aoguid) || !is_string($str)) {
 		throw new Exception('Wrong data');
 	}
+
+	$sourseStr = $str;
 
 	// Заменяем все подряд идущие пробельные знаки на один пробел + trim
 	$str = trim(mb_ereg_replace('\s+', ' ', $str));
@@ -24,12 +38,21 @@ try {
 	// К нижнему регистру
 	$str = mb_strtolower($str);
 
-	// Соединение с бд
+	/*
+	 * DB connection.
+	 */
+
 	$db = new PDO(DBSTRING);
 	$db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+	$db->setAttribute(PDO::ATTR_EMULATE_PREPARES, TRUE);
 
-	// Находим родительский объект
-	$sql = 'SELECT * FROM addrobj WHERE aoguid = :aoguid LIMIT 1;';
+	/*
+	 * Find parent object.
+	 */
+
+	$sql = <<<SQL
+SELECT * FROM addrobj WHERE aoguid = :aoguid LIMIT 1;
+SQL;
 	$prepare = $db->prepare($sql);
 	$prepare->bindValue(':aoguid', $aoguid);
 	$prepare->execute();
@@ -40,11 +63,16 @@ try {
 	
 	$parentAddress = mb_strtolower($parentObject['address']) . ', ';
 	
-	$fullStr = $parentAddress . $str;
+	$fullStr = $parentObject['address'] . ', ' . $sourseStr;
 	
 	// Проверяем, содержит ли фраза полный адрес финального адресного объекта
-	// Отсекаем части с конца по пробелам. Убираем зяпятые в конце.
-	$sql = 'SELECT * FROM (
+	if ($parentObject['final'] == 't') {
+		$finalObject = $parentObject;
+		$houseStr = $str;
+	} else {
+		// Отсекаем части с конца по пробелам. Убираем зяпятые в конце.
+		$sql = <<<SQL
+SELECT * FROM (
 	WITH RECURSIVE r AS (
 		SELECT * FROM addrobj WHERE aoguid = :aoguid
 		UNION ALL
@@ -55,61 +83,88 @@ try {
 	SELECT * FROM r
 ) as tmp
 WHERE lower(address) = :str
-	AND final = \'t\'
-LIMIT 1;';
-	$prepare = $db->prepare($sql);
-	$prepare->bindValue(':aoguid', $aoguid);
-	$prepare->bindParam(':str', $part);
+LIMIT 1;
+SQL;
+		$prepare = $db->prepare($sql);
+		$prepare->bindValue(':aoguid', $aoguid);
 
-	$finalObject = NULL;
-	$part = $fullStr;
-	$i = 0;
-	while ($part) {
-		if (mb_substr($part, -1) == ',') {
-			$part = mb_substr($part, 0, mb_strlen($part) - 1);
-		}
-		$prepare->execute();
-		if ($res = $prepare->fetchAll(PDO::FETCH_ASSOC)) {
-			$finalObject = $res[0];
-			break;
-		}
-		$part = mb_strrchr($part, ' ', TRUE);
-		$i++;
-	}
-	
-	// Если финальный объект - ищем дома
-	if ($finalObject) {
-		if ($i) {
-			$exp = explode(' ', $fullStr);
-			$countExp = count($exp);
-			$houseStr = '';
-			for ($i = $countExp - $i; $i <= $countExp - 1; $i++) {
-				$houseStr .= $exp[$i];
+		$finalObject = NULL;
+		$houseStr = '';
+		$part = $str;
+		while ($part) {
+			$prepare->bindValue(
+				':str',
+				$parentAddress . (
+					mb_substr($part, -1) == ','
+						? mb_substr($part, 0, mb_strlen($part) - 1) : $part
+				)
+			);
+			$prepare->execute();
+			if ($res = $prepare->fetchAll(PDO::FETCH_ASSOC)) {
+				if ($res[0]['final'] == 't') {
+					$finalObject = $res[0];
+				} else {
+					$aoguid = $res[0]['aoguid'];
+					$parentAddress = mb_strtolower($res[0]['address']) . ', ';
+					//$str = mb_substr($str, 0, mb_strlen($part) - 1);
+				}
+				break;
 			}
-		} else {
-			$houseStr = NULL;
+			$houseStr = (mb_strrchr($part, ' ') ?: $part) . $houseStr;
+			$part = mb_strrchr($part, ' ', TRUE);
 		}
-		
+		if (mb_substr($houseStr, 0, 1) == ',') {
+			$houseStr = mb_substr($houseStr, 1);
+		}
+		$houseStr = trim($houseStr);
+	}
+
+	// Если финальный объект - ищем дома
+	if ($finalObject) {		
 		$result = NULL;
 		// Проверяем на полное соответствие
 		if ($houseStr) {
-			$sql = 'SELECT * FROM house WHERE aoguid = :aoguid AND lower(number) = :str LIMIT 1;';
+			$sql = <<<SQL
+SELECT * FROM house WHERE aoguid = :aoguid AND lower(number) = :str LIMIT 1;
+SQL;
 			$prepare = $db->prepare($sql);
 			$prepare->bindValue(':aoguid', $finalObject['aoguid']);
 			$prepare->bindValue(':str', $houseStr);
 			$prepare->execute();
 			if ($res = $prepare->fetchAll(PDO::FETCH_ASSOC)) {
-				$result = [
-					'final' => TRUE,
-				];
+				$finalStr = $finalObject['address'] . ', ' . $res[0]['number'];
+				if ($fullStr == $finalStr) {
+					$result = [
+						'final' => TRUE,
+					];
+				} else {
+					$result = [
+						'final' => FALSE,
+						'items' => [
+							[
+								'address' => $finalStr,
+							],
+						],
+					];
+				}
 			}
 		}
 
 		if (!$result) {
-			$sql = 'SELECT * FROM house WHERE aoguid = :aoguid' .
-				($houseStr ? ' ORDER BY similarity(number, :str) DESC' : '') . ' LIMIT 10;';
+			if (!$houseStr) {
+				$sql = <<<SQL
+SELECT * FROM house WHERE aoguid = :aoguid
+	ORDER BY lower(number) LIMIT :limit;
+SQL;
+			} else {
+				$sql = <<<SQL
+SELECT * FROM house WHERE aoguid = :aoguid
+	ORDER BY similarity(number, :str) DESC LIMIT :limit;
+SQL;
+			}
 			$prepare = $db->prepare($sql);
 			$prepare->bindValue(':aoguid', $finalObject['aoguid']);
+			$prepare->bindValue(':limit', $limit, PDO::PARAM_INT);
 			if ($houseStr) {
 				$prepare->bindValue(':str', $houseStr);
 			}
@@ -120,12 +175,14 @@ LIMIT 1;';
 					'items' => [],
 				];
 				foreach ($res as $item) {
-					$result['items'][] = $finalObject['address'] . ', ' . $item['number'];
+					$result['items'][] = [
+						'address' => $finalObject['address'] . ', ' . $item['number'],
+					];
 				}
 			// Если у финального объекта нет домов
 			} else {
 				// Если поисковая строка равна полному адресу финального объекта
-				if ($fullStr == mb_strtolower($finalObject['address'])) {
+				if ($fullStr == $finalObject['address']) {
 					$result = [
 						'final' => TRUE,
 					];
@@ -133,7 +190,9 @@ LIMIT 1;';
 					$result = [
 						'final' => FALSE,
 						'items' => [
-							$finalObject['address']
+							[
+								'address' => $finalObject['address'],
+							],
 						],
 					];
 				}
@@ -141,7 +200,9 @@ LIMIT 1;';
 		}
 	// Иначе выводим подсказки по адресам
 	} else {
-		$sql = 'SELECT * FROM (
+		if ($str) {
+			$sql = <<<SQL
+SELECT * FROM (
 	WITH RECURSIVE r AS (
 		SELECT * FROM addrobj WHERE aoguid = :aoguid
 		UNION ALL
@@ -151,10 +212,17 @@ LIMIT 1;';
 	)
 	SELECT * FROM r
 ) as tmp
-ORDER BY similarity(address, :str) DESC LIMIT 10;';
+WHERE aoguid != :aoguid
+ORDER BY similarity(substring(address, :parAddrLen), :str) DESC LIMIT :limit;
+SQL;
+		} else {
+
+		}
 		$prepare = $db->prepare($sql);
 		$prepare->bindValue(':aoguid', $aoguid);
+		$prepare->bindValue(':parAddrLen', mb_strlen($parentAddress) + 1, PDO::PARAM_INT);
 		$prepare->bindValue(':str', $str);
+		$prepare->bindValue(':limit', $limit, PDO::PARAM_INT);
 		$prepare->execute();
 		$res = $prepare->fetchAll(PDO::FETCH_ASSOC);
 		
@@ -163,15 +231,17 @@ ORDER BY similarity(address, :str) DESC LIMIT 10;';
 			'items' => [],
 		];
 		foreach ($res as $item) {
-			$result['items'][] = $item['address'];
+			$result['items'][] = [
+				'address' => $item['address'],
+			];
 		}
 	}
 	
 	// Обрезаем адрес родительского объекта у подсказок
 	if (isset($result['items'])) {
+		$parAddrLen = mb_strlen($parentObject['address']) + 2;
 		foreach ($result['items'] as &$item) {
-			$pAStrLen = mb_strlen($parentAddress);
-			$item = mb_substr($item, $pAStrLen);
+			$item['address'] = mb_substr($item['address'], $parAddrLen);
 		}
 		unset($item);
 	}
@@ -179,7 +249,6 @@ ORDER BY similarity(address, :str) DESC LIMIT 10;';
 	$result['success'] = TRUE;
 
 } catch (Exception $e) {
-	//echo $e->getMessage();
 	$result = [
 		'success' => FALSE,
 		'error' => $e->getMessage(),

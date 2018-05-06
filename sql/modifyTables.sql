@@ -1,3 +1,4 @@
+
 -- Table addrobj_tmp --
 
 -- Set level and address
@@ -30,9 +31,7 @@ SET final = NOT EXISTS(SELECT * FROM addrobj_tmp ao2 WHERE ao2.parentguid = ao1.
 -- Set number
 
 UPDATE house_tmp
-SET number = COALESCE(housenum, '')
-	|| COALESCE('к' || buildnum, '')
-	|| COALESCE('с' || strucnum, '');
+SET number = COALESCE(housenum, '') || COALESCE('к' || buildnum, '') || COALESCE('с' || strucnum, '');
 
 -- Swop tables --
 
@@ -42,13 +41,9 @@ DROP TABLE IF EXISTS addrobj;
 
 ALTER TABLE addrobj_tmp RENAME TO addrobj;
 
-ALTER INDEX addrobj_tmp_aoguid_uq_idx RENAME TO addrobj_aoguid_uq_idx;
-
-ALTER INDEX addrobj_tmp_parentguid_idx RENAME TO addrobj_parentguid_idx;
+ALTER INDEX addrobj_tmp_parentguid_formalname_lower_idx RENAME TO addrobj_parentguid_formalname_lower_idx;
 
 ALTER INDEX addrobj_tmp_plaincode_idx RENAME TO addrobj_plaincode_idx;
-
-ALTER INDEX addrobj_tmp_address_lower_idx RENAME TO addrobj_address_lower_idx;
 
 -- Table house
 
@@ -56,8 +51,4 @@ DROP TABLE IF EXISTS house;
 
 ALTER TABLE house_tmp RENAME TO house;
 
-ALTER INDEX house_tmp_houseguid_uq_idx RENAME TO house_houseguid_uq_idx;
-
-ALTER INDEX house_tmp_aoguid_idx RENAME TO house_aoguid_idx;
-
-ALTER INDEX house_tmp_number_lower_idx RENAME TO house_number_lower_idx;
+ALTER INDEX house_tmp_aoguid_number_lower_idx RENAME TO house_aoguid_number_lower_idx;

@@ -1,0 +1,115 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Подсказки адресов по ФИАС</title>
+    <script src="/js/jquery-3.3.1.min.js"></script>
+    <script src="/js/script.js"></script>
+    <style>
+    	#cities > div {height: 200px; overflow: scroll;}
+	</style>
+</head>
+<body>
+	<span id="selectCity">Выбрать нас. пункт.</span>
+
+
+<div id="cities"></div>
+
+	<form>
+		<input type="text" id="address" style="width: 400px;">
+		<div id="hints"></div>
+	</form>
+    <script>
+		$(document).ready(function(){
+
+
+			$(document).on('click', '#selectCity', function(){
+	$.ajax({
+		url: '/cities',
+		/*data: {
+			aoguid: 'null'
+		},*/
+		success: function(data) {
+			console.log(data);
+			if (data.success) {
+
+					$('#cities').append('<div></div>');
+					$.each(data.items, function(k, v) {
+						$('#cities > div:last').append('<div class="city" style="cursor: pointer;" data-aoguid="' + v.aoguid + '">' + v.address + '</div>');
+					});
+			}
+		}
+	});
+			});
+
+
+			$(document).on('click', '.city', function(){
+
+				var pCity = $(this);
+	$.ajax({
+		url: '/cities',
+		data: {
+			aoguid: $(this).data('aoguid'),
+		},
+		success: function(data) {
+			console.log(data);
+			if (data.success) {
+
+				parent = pCity.data('aoguid');
+				$('#address').val('');
+				$('#hints').html('');
+
+					if (pCity.parent().next().length) {
+						pCity.parent().nextAll().remove();
+					}
+					$('#cities').append('<div></div>');
+											$.each(data.items, function(k, v) {
+							$('#cities > div:last').append('<div class="city" style="cursor: pointer;" data-aoguid="' + v.aoguid + '">' + v.address + '</div>');
+						});
+			}
+		}
+	});
+			});
+
+
+
+
+
+
+			
+			$('#address').on('input', function(){
+				sendRec();
+			});
+			
+function sendRec() {
+	$.ajax({
+		url: '/suggestions',
+		data: {
+			aoguid: parent,
+			str: $('#address').val(),
+		},
+		success: function(data) {
+			console.log(data);
+			if (data.success) {
+				$('#hints').html('');
+				if (data.final) {
+					$('#hints').html('Полный адрес');
+				} else {
+					$.each(data.items, function(k, v) {
+						$('#hints').append('<div class="hint" style="cursor: pointer;">' + v.address + '</div>');
+					});
+				}
+			}
+		}
+	});
+}
+			
+			$(document).on('click', '.hint', function(){
+				$('#address').val($(this).text());
+				sendRec();
+				$('#hints').html('');
+			});
+		});
+    </script>
+</body>
+</html>

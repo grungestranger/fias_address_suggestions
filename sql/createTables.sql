@@ -1,11 +1,12 @@
+
 -- Table addrobj_tmp
 
 DROP TABLE IF EXISTS addrobj_tmp;
 
 CREATE TABLE addrobj_tmp (
-	plaincode			CHAR(15),
-    aoguid				UUID,
+    aoguid				UUID PRIMARY KEY,
     parentguid			UUID,
+    plaincode           CHAR(15),
     level				SMALLINT,
     aolevel				SMALLINT,
     formalname			VARCHAR,
@@ -16,14 +17,9 @@ CREATE TABLE addrobj_tmp (
 	final				BOOLEAN
 );
 
-CREATE UNIQUE INDEX addrobj_tmp_aoguid_uq_idx
+CREATE INDEX addrobj_tmp_parentguid_formalname_lower_idx
     ON addrobj_tmp
-    USING BTREE (aoguid)
-;
-
-CREATE INDEX addrobj_tmp_parentguid_idx
-    ON addrobj_tmp
-    USING BTREE (parentguid)
+    USING BTREE (parentguid, lower(formalname))
 ;
 
 CREATE INDEX addrobj_tmp_plaincode_idx
@@ -31,17 +27,12 @@ CREATE INDEX addrobj_tmp_plaincode_idx
     USING BTREE (plaincode)
 ;
 
-CREATE INDEX addrobj_tmp_address_lower_idx
-    ON addrobj_tmp
-    USING BTREE (lower(address))
-;
-
 -- Table house_tmp
 
 DROP TABLE IF EXISTS house_tmp;
 
 CREATE TABLE house_tmp (
-	houseguid	UUID,
+	houseguid	UUID PRIMARY KEY,
 	aoguid		UUID,
 	housenum	VARCHAR,
 	eststatus	SMALLINT,
@@ -52,17 +43,7 @@ CREATE TABLE house_tmp (
 	postalcode	CHAR(6)
 );
 
-CREATE UNIQUE INDEX house_tmp_houseguid_uq_idx
+CREATE INDEX house_tmp_aoguid_number_lower_idx
     ON house_tmp
-    USING BTREE (houseguid)
-;
-
-CREATE INDEX house_tmp_aoguid_idx
-    ON house_tmp
-    USING BTREE (aoguid)
-;
-
-CREATE INDEX house_tmp_number_lower_idx
-    ON house_tmp
-    USING BTREE (lower(number))
+    USING BTREE (aoguid, lower(number))
 ;

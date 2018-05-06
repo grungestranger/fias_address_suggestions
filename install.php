@@ -5,14 +5,10 @@ require_once __DIR__ . '/config.php';
 const URL = 'http://fias.nalog.ru/Public/Downloads/Actual/fias_xml.rar';
 const ARCHIVE = __DIR__ . '/uploads/fias_xml.rar';
 const EXTRACT_DIR = __DIR__ . '/uploads/fias_xml';
-const SQL_DIR = __DIR__ . '/sql';
-
+const CREATE_TABLES_SQL = __DIR__ . '/sql/createTables.sql';
+const MODIFY_TABLES_SQL = __DIR__ . '/sql/modifyTables.sql';
 const ROWS_PER_INSERT = 1000;
-
 const MAX_PLAIN_CODE_LENGTH = 15;
-
-const CREATE_TABLES_SQL = 'createTables.sql';
-const MODIFY_TABLES_SQL = 'modifyTables.sql';
 const TABLES = [
 	[
 		'name' => 'addrobj',
@@ -28,6 +24,13 @@ const TABLES = [
 		],
 		'node' => 'Object',
 		'file' => 'AS_ADDROBJ_',
+		'filter' => [
+			[
+				'field' => 'CURRSTATUS',
+				'type' => 'equal',
+				'value' => 0,
+			],
+		],
 	],
 	[
 		'name' => 'house',
@@ -43,11 +46,24 @@ const TABLES = [
 		],
 		'node' => 'House',
 		'file' => 'AS_HOUSE_',
+		'filter' => [
+			[
+				'field' => 'ENDDATE',
+				'type' => 'dateUnder',
+				'days' => 14,
+			],
+		],
 	],
 ];
 
+define('TIME', time());
+
 try {
-	// Загрузка файла
+
+	/*
+	 * Download archive.
+	 */
+
 	$file = fopen(ARCHIVE, 'w');
 	$curl = curl_init(URL);
 	curl_setopt($curl, CURLOPT_FILE, $file);
@@ -60,16 +76,30 @@ try {
 		throw new Exception($curlError);
 	}
 
-	// Распаковка файла
-	exec('unrar e ' . ARCHIVE . ' ' . EXTRACT_DIR . ' 2>&1', $output, $result);
-	if ($result !== 0) {
-		throw new Exception('Ошибка разархивации: ' . implode("\n", $output));
-	}
-	if (!unlink(ARCHIVE)) {
-		throw new Exception('Не удалось удалить архив: ' . ARCHIVE);
+	/*
+	 * Create extract dir.
+	 */
+
+	if (!mkdir(EXTRACT_DIR)) {
+		throw new Exception('Unable to create extract dir: ' . EXTRACT_DIR);
 	}
 
-	// Находим нужные файлы
+	/*
+	 * Unpack the archive.
+	 */
+
+	exec('unrar e ' . ARCHIVE . ' ' . EXTRACT_DIR . ' 2>&1', $output, $result);
+	if ($result !== 0) {
+		throw new Exception('Unarchiving error: ' . implode("\n", $output));
+	}
+	if (!unlink(ARCHIVE)) {
+		throw new Exception('Unable to delete archive: ' . ARCHIVE);
+	}
+
+	/*
+	 * Search for needed files.
+	 */
+
 	$files = [];
 	foreach (scandir(EXTRACT_DIR) as $i) {
 		if (is_file($file = EXTRACT_DIR . '/' . $i)) {
@@ -84,33 +114,42 @@ try {
 				}
 			}
 			if (!$flag && !unlink($file)) {
-				throw new Exception('Не удалось удалить файл:' . $file);
+				throw new Exception('Unable to delete file:' . $file);
 			}
 		}
 	}
 	foreach (TABLES as $table) {
 		if (!isset($files[$table['name']])) {
-			throw new Exception('Нет файла: ' . $table['name']);
+			throw new Exception('File not found: ' . $table['name']);
 		}
 	}
 
-	// Соединение с бд
+	/*
+	 * DB connection.
+	 */
+
 	$db = new PDO(DBSTRING);
 	$db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-	
-	// Создание таблиц
-	$sql_file = SQL_DIR . '/' . CREATE_TABLES_SQL;
-	if (!($sql = file_get_contents($sql_file))) {
-		throw new Exception('Не удается открыть файл: ' . $sql_file);
+
+	/*
+	 * Create tables.
+	 */
+
+	if (!($sql = file_get_contents(CREATE_TABLES_SQL))) {
+		throw new Exception('Unable to open file: ' . CREATE_TABLES_SQL);
 	}
 	$db->exec($sql);
 
 	foreach (TABLES as $table) {
-		// Открываем и обрабатываем XML
+
+		/*
+		 * Opening and processing an xml file.
+		 */
+
 		$file = $files[$table['name']];
 		$reader = new XMLReader();
 		if (!$reader->open($file)) {
-			throw new Exception('Ошибка открытия xml файла: ' . $file);
+			throw new Exception('Unable to open xml file: ' . $file);
 		}
 
 		$result = TRUE;
@@ -118,35 +157,56 @@ try {
 			$result = [];
 			$i = 0;
 			while ($i < ROWS_PER_INSERT && $reader->read()) {
-				switch ($table['name']) {
-					case 'addrobj':
-						$filter = $reader->getAttribute('CURRSTATUS') == 0 ? TRUE : FALSE;
-						break;
-					case 'house':
-						$filter = $reader->getAttribute('ENDDATE')
-							> date('Y-m-d', time() - 3600 * 24 * 14) ? TRUE : FALSE;
-						break;
-					default:
-						$filter = TRUE;
-				}
-				if ($reader->name == $table['node'] && $filter) {
-					$item = [];
-					foreach ($table['fields'] as $v) {
-						$attribute = $reader->getAttribute(mb_strtoupper($v));
-						if ($v == 'plaincode' && $attribute) {
-							$attribute = str_pad($attribute, MAX_PLAIN_CODE_LENGTH, '0');
+				if ($reader->name == $table['node']) {
+
+					/*
+					 * Filter.
+					 */
+
+					foreach ($table['filter'] as $rule) {
+						$field = $reader->getAttribute($rule['field']);
+						switch ($rule['type']) {
+							case 'equal':
+								$filter = $field == $rule['value'] ? TRUE : FALSE;
+								break;
+							case 'dateUnder':
+								$filter = $field > date('Y-m-d', TIME - 3600 * 24 * $rule['days'])
+									? TRUE : FALSE;
+								break;
 						}
-						$item[$v] = $attribute;
+						if (!$filter) {
+							break;
+						}
 					}
-					$result[] = $item;
-					$i++;
+
+					if ($filter) {
+						$item = [];
+						foreach ($table['fields'] as $v) {
+							$attribute = $reader->getAttribute(mb_strtoupper($v));
+
+							/*
+							 * Plaincode condition.
+							 */
+
+							if ($v == 'plaincode' && $attribute) {
+								$attribute = str_pad($attribute, MAX_PLAIN_CODE_LENGTH, '0');
+							}
+
+							$item[$v] = $attribute;
+						}
+						$result[] = $item;
+						$i++;
+					}
 				}
 			}
-			// Запись в бд
+
+			/*
+			 * Writing to the database.
+			 */
+
 			if ($result) {
 				$count = count($result);
 				$sql = 'INSERT INTO ' . $table['name'] . '_tmp' . ' (' . implode(', ', $table['fields']) . ') VALUES ';
-				
 				for ($i = 0; $i < $count; $i++) {
 					$sql .= '(:' . implode($i . ', :', $table['fields']) . $i . ')' . ($i == $count - 1 ? ' ' : ', ');
 				}
@@ -161,16 +221,29 @@ try {
 			}
 		}
 
-		// Удаление файла
+		/*
+		 * Deleting an xml filee.
+		 */
+
 		if (!unlink($file)) {
-			throw new Exception('Не удалось удалить файл: ' . $file);
+			throw new Exception('Unable to delete file: ' . $file);
 		}
 	}
+
+	/*
+	 * Remove extract dir.
+	 */
+
+	if (!rmdir(EXTRACT_DIR)) {
+		throw new Exception('Unable to remove extract dir: ' . EXTRACT_DIR);
+	}
 	
-	// Модификация таблиц
-	$sql_file = SQL_DIR . '/' . MODIFY_TABLES_SQL;
-	if (!($sql = file_get_contents($sql_file))) {
-		throw new Exception('Не удается открыть файл: ' . $sql_file);
+	/*
+	 * Modifying tables.
+	 */
+
+	if (!($sql = file_get_contents(MODIFY_TABLES_SQL))) {
+		throw new Exception('Unable to open file: ' . MODIFY_TABLES_SQL);
 	}
 	$db->exec($sql);
 

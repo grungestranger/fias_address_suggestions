@@ -1,0 +1,3 @@
+-- NOT NULL for fields - check ON CONFLICT DO NOTHING
+-- UNIQUE address
+-- INDEX for lower(address) (in tmp)
