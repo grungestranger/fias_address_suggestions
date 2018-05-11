@@ -17,15 +17,25 @@ CREATE TABLE addrobj_tmp (
 	final				BOOLEAN
 );
 
-CREATE INDEX addrobj_tmp_parentguid_formalname_lower_idx
+CREATE INDEX addrobj_tmp_parentguid_idx
     ON addrobj_tmp
-    USING BTREE (parentguid, lower(formalname))
+    USING BTREE (parentguid)
 ;
 
-CREATE INDEX addrobj_tmp_plaincode_idx
+CREATE INDEX addrobj_tmp_regioncode_address_gist_idx
     ON addrobj_tmp
-    USING BTREE (plaincode)
+    USING GIST (regioncode, address gist_trgm_ops)
 ;
+
+CREATE INDEX addrobj_tmp_regioncode_address_lower_idx
+    ON addrobj_tmp
+    USING BTREE (regioncode, lower(address))
+;
+
+--CREATE INDEX addrobj_tmp_plaincode_idx
+--    ON addrobj_tmp
+--    USING BTREE (plaincode)
+--;
 
 -- Table house_tmp
 
@@ -42,6 +52,11 @@ CREATE TABLE house_tmp (
 	number		VARCHAR,
 	postalcode	CHAR(6)
 );
+
+--CREATE INDEX house_tmp_aoguid_number_gist_idx
+--    ON house_tmp
+--    USING GIST (aoguid, number gist_trgm_ops)
+--;
 
 CREATE INDEX house_tmp_aoguid_number_lower_idx
     ON house_tmp

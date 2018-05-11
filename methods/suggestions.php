@@ -8,23 +8,20 @@
 require_once realpath(__DIR__ . '/../config.php');
 
 try {
-	if (!isset($_GET['aoguid']) || !isset($_GET['str'])) {
+	if (!isset($_GET['region']) || !isset($_GET['str'])) {
 		throw new Exception('No data');
 	}
 
-	$aoguid = $_GET['aoguid'];
-	$str = $_GET['str'];
-	if (!isset($_GET['count'])) {
-		$limit = COUNT_HINTS;
-	} elseif (($limit = intval($_GET['count'])) < 1) {
-		$limit = 1;
-	} elseif ($limit > MAX_COUNT_HINTS) {
-		$limit = MAX_COUNT_HINTS;
-	}
-	
-	if (!is_string($aoguid) || !is_string($str)) {
+	if (
+		!is_string($region = $_GET['region'])
+		|| !is_string($str = $_GET['str'])
+	) {
 		throw new Exception('Wrong data');
 	}
+
+	/*
+	 * String
+	 */
 
 	$sourseStr = $str;
 
@@ -39,6 +36,29 @@ try {
 	$str = mb_strtolower($str);
 
 	/*
+	 * Region
+	 */
+
+	if (
+		!preg_match ('^\d{2}$', $region)
+		|| intval($region) == 0
+	) {
+		throw new Exception('Wrong region');
+	}
+
+	/*
+	 * Count
+	 */
+
+	if (!isset($_GET['count'])) {
+		$limit = COUNT_HINTS;
+	} elseif (($limit = intval($_GET['count'])) < 1) {
+		$limit = 1;
+	} elseif ($limit > MAX_COUNT_HINTS) {
+		$limit = MAX_COUNT_HINTS;
+	}
+
+	/*
 	 * DB connection.
 	 */
 
@@ -47,77 +67,61 @@ try {
 	$db->setAttribute(PDO::ATTR_EMULATE_PREPARES, TRUE);
 
 	/*
-	 * Find parent object.
+	 * Find region.
 	 */
 
 	$sql = <<<SQL
-SELECT * FROM addrobj WHERE aoguid = :aoguid LIMIT 1;
+SELECT * FROM addrobj WHERE parentguid IS NULL AND regioncode = :region LIMIT 1;
 SQL;
 	$prepare = $db->prepare($sql);
-	$prepare->bindValue(':aoguid', $aoguid);
+	$prepare->bindValue(':region', $region);
 	$prepare->execute();
 	if (!($res = $prepare->fetchAll(PDO::FETCH_ASSOC))) {
-		throw new Exception('Wrong parent fias aoguid');
+		throw new Exception('Wrong region');
 	}
-	$parentObject = $res[0];
+	/*$parentObject = $res[0];
 	
 	$parentAddress = mb_strtolower($parentObject['address']) . ', ';
 	
-	$fullStr = $parentObject['address'] . ', ' . $sourseStr;
+	$fullStr = $parentObject['address'] . ', ' . $sourseStr;*/
 	
 	// Проверяем, содержит ли фраза полный адрес финального адресного объекта
-	if ($parentObject['final'] == 't') {
-		$finalObject = $parentObject;
-		$houseStr = $str;
-	} else {
-		// Отсекаем части с конца по пробелам. Убираем зяпятые в конце.
-		$sql = <<<SQL
-SELECT * FROM (
-	WITH RECURSIVE r AS (
-		SELECT * FROM addrobj WHERE aoguid = :aoguid
-		UNION ALL
-		SELECT ao.* FROM addrobj ao
-			JOIN r
-				ON ao.parentguid = r.aoguid
-	)
-	SELECT * FROM r
-) as tmp
-WHERE lower(address) = :str
-LIMIT 1;
+	// Отсекаем части с конца по пробелам. Убираем зяпятые в конце.
+	$sql = <<<SQL
+SELECT * FROM addrobj WHERE regioncode = :region AND lower(address) = :str LIMIT 1;
 SQL;
-		$prepare = $db->prepare($sql);
-		$prepare->bindValue(':aoguid', $aoguid);
+	$prepare = $db->prepare($sql);
+	$prepare->bindValue(':region', $region);
 
-		$finalObject = NULL;
-		$houseStr = '';
-		$part = $str;
-		while ($part) {
-			$prepare->bindValue(
-				':str',
-				$parentAddress . (
-					mb_substr($part, -1) == ','
-						? mb_substr($part, 0, mb_strlen($part) - 1) : $part
-				)
-			);
-			$prepare->execute();
-			if ($res = $prepare->fetchAll(PDO::FETCH_ASSOC)) {
-				if ($res[0]['final'] == 't') {
-					$finalObject = $res[0];
-				} else {
-					$aoguid = $res[0]['aoguid'];
-					$parentAddress = mb_strtolower($res[0]['address']) . ', ';
-					//$str = mb_substr($str, 0, mb_strlen($part) - 1);
-				}
-				break;
+	$finalObject = NULL;
+	$houseStr = '';
+	$part = $str;
+	while ($part) {
+		$prepare->bindValue(
+			':str',
+			$parentAddress . (
+				mb_substr($part, -1) == ','
+					? mb_substr($part, 0, mb_strlen($part) - 1) : $part
+			)
+		);
+		$prepare->execute();
+		if ($res = $prepare->fetchAll(PDO::FETCH_ASSOC)) {
+			if ($res[0]['final'] == 't') {
+				$finalObject = $res[0];
+			} else {
+				$aoguid = $res[0]['aoguid'];
+				$parentAddress = mb_strtolower($res[0]['address']) . ', ';
+				//$str = mb_substr($str, 0, mb_strlen($part) - 1);
 			}
-			$houseStr = (mb_strrchr($part, ' ') ?: $part) . $houseStr;
-			$part = mb_strrchr($part, ' ', TRUE);
+			break;
 		}
-		if (mb_substr($houseStr, 0, 1) == ',') {
-			$houseStr = mb_substr($houseStr, 1);
-		}
-		$houseStr = trim($houseStr);
+		$houseStr = (mb_strrchr($part, ' ') ?: $part) . $houseStr;
+		$part = mb_strrchr($part, ' ', TRUE);
 	}
+	if (mb_substr($houseStr, 0, 1) == ',') {
+		$houseStr = mb_substr($houseStr, 1);
+	}
+	$houseStr = trim($houseStr);
 
 	// Если финальный объект - ищем дома
 	if ($finalObject) {		
@@ -209,6 +213,7 @@ SELECT * FROM (
 		SELECT ao.* FROM addrobj ao
 			JOIN r
 				ON ao.parentguid = r.aoguid
+					AND r.final = 'f'
 	)
 	SELECT * FROM r
 ) as tmp

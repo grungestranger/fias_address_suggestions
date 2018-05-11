@@ -8,11 +8,11 @@ SET level = tmp.level,
 	address = tmp.address
 FROM (
 	WITH RECURSIVE r (level, aoguid, address) AS (
-		SELECT 0, aoguid, shortname || ' ' || formalname
+		SELECT 0, aoguid, NULL
 		FROM addrobj_tmp
 		WHERE parentguid IS NULL
 		UNION ALL
-		SELECT r.level + 1, ao1.aoguid, r.address || ', ' || shortname || ' ' || ao1.formalname
+		SELECT r.level + 1, ao1.aoguid, COALESCE(r.address || ', ', '') || shortname || ' ' || ao1.formalname
 		FROM addrobj_tmp ao1
 		INNER JOIN r
 			ON r.aoguid = ao1.parentguid
@@ -20,6 +20,8 @@ FROM (
 	SELECT * FROM r
 ) tmp
 WHERE tmp.aoguid = ao.aoguid;
+--SELECT r.level + 1, ao1.aoguid, r.address || ', ' || shortname || ' ' || ao1.formalname
+--SELECT 0, aoguid, shortname || ' ' || formalname
 
 -- Set final
 
@@ -41,14 +43,20 @@ DROP TABLE IF EXISTS addrobj;
 
 ALTER TABLE addrobj_tmp RENAME TO addrobj;
 
-ALTER INDEX addrobj_tmp_parentguid_formalname_lower_idx RENAME TO addrobj_parentguid_formalname_lower_idx;
+ALTER INDEX addrobj_tmp_pkey RENAME TO addrobj_pkey;
 
-ALTER INDEX addrobj_tmp_plaincode_idx RENAME TO addrobj_plaincode_idx;
+ALTER INDEX addrobj_tmp_parentguid_idx RENAME TO addrobj_parentguid_idx;
+
+ALTER INDEX addrobj_tmp_regioncode_address_gist_idx RENAME TO addrobj_regioncode_address_gist_idx;
+
+ALTER INDEX addrobj_tmp_regioncode_address_lower_idx RENAME TO addrobj_regioncode_address_lower_idx;
 
 -- Table house
 
 DROP TABLE IF EXISTS house;
 
 ALTER TABLE house_tmp RENAME TO house;
+
+ALTER INDEX house_tmp_pkey RENAME TO house_pkey;
 
 ALTER INDEX house_tmp_aoguid_number_lower_idx RENAME TO house_aoguid_number_lower_idx;
