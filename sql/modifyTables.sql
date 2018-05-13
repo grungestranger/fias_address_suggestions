@@ -45,7 +45,7 @@ ALTER TABLE addrobj_tmp RENAME TO addrobj;
 
 ALTER INDEX addrobj_tmp_pkey RENAME TO addrobj_pkey;
 
-ALTER INDEX addrobj_tmp_parentguid_idx RENAME TO addrobj_parentguid_idx;
+ALTER INDEX addrobj_tmp_parentguid_formalname_lower_idx RENAME TO addrobj_parentguid_formalname_lower_idx;
 
 ALTER INDEX addrobj_tmp_regioncode_address_gist_idx RENAME TO addrobj_regioncode_address_gist_idx;
 

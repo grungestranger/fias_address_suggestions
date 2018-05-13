@@ -76,136 +76,123 @@ SQL;
 	$prepare = $db->prepare($sql);
 	$prepare->bindValue(':region', $region);
 	$prepare->execute();
-	if (!($res = $prepare->fetchAll(PDO::FETCH_ASSOC))) {
+	if ($prepare->fetchAll(PDO::FETCH_ASSOC)) {
 		throw new Exception('Wrong region');
 	}
-	/*$parentObject = $res[0];
 	
-	$parentAddress = mb_strtolower($parentObject['address']) . ', ';
-	
-	$fullStr = $parentObject['address'] . ', ' . $sourseStr;*/
-	
-	// Проверяем, содержит ли фраза полный адрес финального адресного объекта
+	// Проверяем, содержит ли фраза полный адрес адресного объекта
 	// Отсекаем части с конца по пробелам. Убираем зяпятые в конце.
 	$sql = <<<SQL
 SELECT * FROM addrobj WHERE regioncode = :region AND lower(address) = :str LIMIT 1;
 SQL;
 	$prepare = $db->prepare($sql);
 	$prepare->bindValue(':region', $region);
+	$prepare->bindParam(':str', $part);
 
-	$finalObject = NULL;
-	$houseStr = '';
+	$parent = NULL;
 	$part = $str;
 	while ($part) {
-		$prepare->bindValue(
-			':str',
-			$parentAddress . (
-				mb_substr($part, -1) == ','
-					? mb_substr($part, 0, mb_strlen($part) - 1) : $part
-			)
-		);
+		if (mb_substr($part, -1) == ',') {
+			$part = mb_substr($part, 0, mb_strlen($part) - 1);
+		}
 		$prepare->execute();
 		if ($res = $prepare->fetchAll(PDO::FETCH_ASSOC)) {
-			if ($res[0]['final'] == 't') {
-				$finalObject = $res[0];
-			} else {
-				$aoguid = $res[0]['aoguid'];
-				$parentAddress = mb_strtolower($res[0]['address']) . ', ';
-				//$str = mb_substr($str, 0, mb_strlen($part) - 1);
-			}
+			$parent = $res[0];
 			break;
 		}
-		$houseStr = (mb_strrchr($part, ' ') ?: $part) . $houseStr;
 		$part = mb_strrchr($part, ' ', TRUE);
 	}
-	if (mb_substr($houseStr, 0, 1) == ',') {
-		$houseStr = mb_substr($houseStr, 1);
-	}
-	$houseStr = trim($houseStr);
 
-	// Если финальный объект - ищем дома
-	if ($finalObject) {		
-		$result = NULL;
-		// Проверяем на полное соответствие
-		if ($houseStr) {
-			$sql = <<<SQL
+	if ($parent) {
+		$str = mb_substr($str, mb_strlen($parent['address']));
+		if (mb_substr($str, 0, 1) == ',') {
+			$str = mb_substr($str, 1);
+		}
+		$str = trim($str);
+
+		// Если финальный объект - ищем дома
+		if ($parent['final'] == 't') {		
+			$result = NULL;
+			// Проверяем на полное соответствие
+			if ($str != '') {
+				$sql = <<<SQL
 SELECT * FROM house WHERE aoguid = :aoguid AND lower(number) = :str LIMIT 1;
 SQL;
-			$prepare = $db->prepare($sql);
-			$prepare->bindValue(':aoguid', $finalObject['aoguid']);
-			$prepare->bindValue(':str', $houseStr);
-			$prepare->execute();
-			if ($res = $prepare->fetchAll(PDO::FETCH_ASSOC)) {
-				$finalStr = $finalObject['address'] . ', ' . $res[0]['number'];
-				if ($fullStr == $finalStr) {
-					$result = [
-						'final' => TRUE,
-					];
-				} else {
-					$result = [
-						'final' => FALSE,
-						'items' => [
-							[
-								'address' => $finalStr,
+				$prepare = $db->prepare($sql);
+				$prepare->bindValue(':aoguid', $parent['aoguid']);
+				$prepare->bindValue(':str', $str);
+				$prepare->execute();
+				if ($res = $prepare->fetchAll(PDO::FETCH_ASSOC)) {
+					$finalStr = $parent['address'] . ', ' . $res[0]['number'];
+					if ($sourseStr == $finalStr) {
+						$result = [
+							'final' => TRUE,
+						];
+					} else {
+						$result = [
+							'final' => FALSE,
+							'items' => [
+								[
+									'address' => $finalStr,
+								],
 							],
-						],
-					];
+						];
+					}
 				}
 			}
-		}
 
-		if (!$result) {
-			if (!$houseStr) {
-				$sql = <<<SQL
+			if (!$result) {
+				if ($str == '') {
+					$sql = <<<SQL
 SELECT * FROM house WHERE aoguid = :aoguid
 	ORDER BY lower(number) LIMIT :limit;
 SQL;
-			} else {
-				$sql = <<<SQL
+				} else {
+					$sql = <<<SQL
 SELECT * FROM house WHERE aoguid = :aoguid
 	ORDER BY similarity(number, :str) DESC LIMIT :limit;
 SQL;
-			}
-			$prepare = $db->prepare($sql);
-			$prepare->bindValue(':aoguid', $finalObject['aoguid']);
-			$prepare->bindValue(':limit', $limit, PDO::PARAM_INT);
-			if ($houseStr) {
-				$prepare->bindValue(':str', $houseStr);
-			}
-			$prepare->execute();
-			if ($res = $prepare->fetchAll(PDO::FETCH_ASSOC)) {
-				$result = [
-					'final' => FALSE,
-					'items' => [],
-				];
-				foreach ($res as $item) {
-					$result['items'][] = [
-						'address' => $finalObject['address'] . ', ' . $item['number'],
-					];
 				}
-			// Если у финального объекта нет домов
-			} else {
-				// Если поисковая строка равна полному адресу финального объекта
-				if ($fullStr == $finalObject['address']) {
-					$result = [
-						'final' => TRUE,
-					];
-				} else {
+				$prepare = $db->prepare($sql);
+				$prepare->bindValue(':aoguid', $parent['aoguid']);
+				$prepare->bindValue(':limit', $limit, PDO::PARAM_INT);
+				if ($str != '') {
+					$prepare->bindValue(':str', $str);
+				}
+				$prepare->execute();
+				if ($res = $prepare->fetchAll(PDO::FETCH_ASSOC)) {
 					$result = [
 						'final' => FALSE,
-						'items' => [
-							[
-								'address' => $finalObject['address'],
-							],
-						],
+						'items' => [],
 					];
+					foreach ($res as $item) {
+						$result['items'][] = [
+							'address' => $parent['address'] . ', ' . $item['number'],
+						];
+					}
+				// Если у финального объекта нет домов
+				} else {
+					// Если поисковая строка равна полному адресу финального объекта
+					if ($sourseStr == $parent['address']) {
+						$result = [
+							'final' => TRUE,
+						];
+					} else {
+						$result = [
+							'final' => FALSE,
+							'items' => [
+								[
+									'address' => $parent['address'],
+								],
+							],
+						];
+					}
 				}
 			}
-		}
-	// Иначе выводим подсказки по адресам
-	} else {
-		if ($str) {
-			$sql = <<<SQL
+		// Иначе выводим подсказки по адресам
+		} else {
+			if ($str != '') {
+				$sql = <<<SQL
 SELECT * FROM (
 	WITH RECURSIVE r AS (
 		SELECT * FROM addrobj WHERE aoguid = :aoguid
@@ -220,17 +207,52 @@ SELECT * FROM (
 WHERE aoguid != :aoguid
 ORDER BY similarity(substring(address, :parAddrLen), :str) DESC LIMIT :limit;
 SQL;
-		} else {
-
+			} else {
+				$sql = <<<SQL
+SELECT * FROM addrobj WHERE parentguid = :aoguid
+ORDER BY lower(formalname) LIMIT :limit;
+SQL;
+			}
+			$prepare = $db->prepare($sql);
+			$prepare->bindValue(':aoguid', $parent['aoguid']);
+			$prepare->bindValue(':limit', $limit, PDO::PARAM_INT);
+			if ($str != '') {
+				$prepare->bindValue(':parAddrLen', mb_strlen($parent['address']) + 1, PDO::PARAM_INT);
+				$prepare->bindValue(':str', $str);
+			}
+			$prepare->execute();
+			$res = $prepare->fetchAll(PDO::FETCH_ASSOC);
+			
+			$result = [
+				'final' => FALSE,
+				'items' => [],
+			];
+			foreach ($res as $item) {
+				$result['items'][] = [
+					'address' => $item['address'],
+				];
+			}
 		}
-		$prepare = $db->prepare($sql);
-		$prepare->bindValue(':aoguid', $aoguid);
-		$prepare->bindValue(':parAddrLen', mb_strlen($parentAddress) + 1, PDO::PARAM_INT);
-		$prepare->bindValue(':str', $str);
-		$prepare->bindValue(':limit', $limit, PDO::PARAM_INT);
-		$prepare->execute();
-		$res = $prepare->fetchAll(PDO::FETCH_ASSOC);
-		
+	} else {
+		$res = NULL;
+		while (!$res) {
+			$sql = <<<SQL
+SELECT * FROM addrobj WHERE regioncode = :region AND address % :str
+ORDER BY similarity(address, :str) DESC LIMIT :limit;
+SQL;
+			$prepare = $db->prepare($sql);
+			$prepare->bindValue(':region', $region);
+			$prepare->bindValue(':limit', $limit, PDO::PARAM_INT);
+			$prepare->bindValue(':str', $str);
+			$prepare->execute();
+			if (!($res = $prepare->fetchAll(PDO::FETCH_ASSOC))) {
+				$sql = <<<SQL
+SELECT set_limit(show_limit() - 0.1);
+SQL;
+				$db->exec($sql);
+			}
+		}
+
 		$result = [
 			'final' => FALSE,
 			'items' => [],
@@ -240,15 +262,6 @@ SQL;
 				'address' => $item['address'],
 			];
 		}
-	}
-	
-	// Обрезаем адрес родительского объекта у подсказок
-	if (isset($result['items'])) {
-		$parAddrLen = mb_strlen($parentObject['address']) + 2;
-		foreach ($result['items'] as &$item) {
-			$item['address'] = mb_substr($item['address'], $parAddrLen);
-		}
-		unset($item);
 	}
 	
 	$result['success'] = TRUE;

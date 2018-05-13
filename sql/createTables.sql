@@ -17,9 +17,9 @@ CREATE TABLE addrobj_tmp (
 	final				BOOLEAN
 );
 
-CREATE INDEX addrobj_tmp_parentguid_idx
+CREATE INDEX addrobj_tmp_parentguid_formalname_lower_idx
     ON addrobj_tmp
-    USING BTREE (parentguid)
+    USING BTREE (parentguid, lower(formalname))
 ;
 
 CREATE INDEX addrobj_tmp_regioncode_address_gist_idx
