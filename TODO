@@ -1,2 +1,5 @@
 -- NOT NULL for fields - check ON CONFLICT DO NOTHING
 -- UNIQUE address
+
+-- LIMIT regions on dropdown?
+-- LIMIT trgm to const?

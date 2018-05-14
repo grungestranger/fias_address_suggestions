@@ -31,7 +31,7 @@ $(function(){
 							}
 						} else {
 							if (type == 'regions') {
-								$('#address > input').prop('disabled', true);
+								$('#address > input').prop('disabled', true).val('');
 							}
 							$.each(data.items, function(k, v) {
 								if (type == 'suggestions') {
@@ -45,7 +45,7 @@ $(function(){
 					}
 				}
 			});
-		}, 100);
+		}, 200);
 	});
 
 	$(document).on('click', '.suggestions > div', function(){
@@ -60,7 +60,7 @@ $(function(){
 
 	function regionComplete(str) {
 		region = str;
-		$('#address > input').prop('disabled', false);
+		$('#address > input').prop('disabled', false).focus();
 	}
 
 });
