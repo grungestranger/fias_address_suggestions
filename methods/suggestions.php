@@ -35,7 +35,7 @@ try {
 	 */
 
 	if (
-		!preg_match ('^\d{2}$', $region)
+		!mb_ereg_match('^\d{2}$', $region)
 		|| intval($region) == 0
 	) {
 		throw new Exception('Wrong region');
