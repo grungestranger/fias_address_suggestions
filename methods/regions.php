@@ -43,17 +43,17 @@ try {
 
 		$sql = <<<SQL
 SELECT * FROM addrobj WHERE parentguid IS NULL
-	AND lower(shortname) || ', ' || lower(formalname) = :str LIMIT 1;
+	AND lower(shortname) || ' ' || lower(formalname) = :str LIMIT 1;
 SQL;
 		$prepare = $db->prepare($sql);
 		$prepare->bindValue(':str', $str);
 		$prepare->execute();
 		if ($res = $prepare->fetchAll(PDO::FETCH_ASSOC)) {
-			$fullName = $res[0]['shortname'] . ', ' . $res[0]['formalname'];
+			$fullName = $res[0]['shortname'] . ' ' . $res[0]['formalname'];
 			if ($sourseStr == $fullName) {
 				$result = [
 					'final' => TRUE,
-					'code' => $res[0]['code'],
+					'code' => $res[0]['regioncode'],
 					'name' => $fullName,
 				];
 			} else {
@@ -61,7 +61,7 @@ SQL;
 					'final' => FALSE,
 					'items' => [
 						[
-							'code' => $res[0]['code'],
+							'code' => $res[0]['regioncode'],
 							'name' => $fullName,
 						],
 					],
@@ -72,7 +72,7 @@ SQL;
 		if (!$result) {
 			$sql = <<<SQL
 SELECT * FROM addrobj WHERE parentguid IS NULL
-	ORDER BY similarity(shortname || ', ' || formalname, :str) DESC LIMIT 10;
+	ORDER BY similarity(shortname || ' ' || formalname, :str) DESC LIMIT 10;
 SQL;
 			$prepare = $db->prepare($sql);
 			$prepare->bindValue(':str', $str);
@@ -85,8 +85,8 @@ SQL;
 			];
 			foreach ($res as $item) {
 				$result['items'][] = [
-					'code' => $item['code'],
-					'name' => $item['shortname'] . ', ' . $item['formalname'],
+					'code' => $item['regioncode'],
+					'name' => $item['shortname'] . ' ' . $item['formalname'],
 				];
 			}
 		}
@@ -103,8 +103,8 @@ SQL;
 		];
 		foreach ($res as $item) {
 			$result['items'][] = [
-				'code' => $item['code'],
-				'name' => $item['shortname'] . ', ' . $item['formalname'],
+				'code' => $item['regioncode'],
+				'name' => $item['shortname'] . ' ' . $item['formalname'],
 			];
 		}
 	}

@@ -49,13 +49,13 @@ $(function(){
 	});
 
 	$(document).on('click', '.suggestions > div', function(){
-		$(this).parent().siblings('input').val($(this).text());
-		$(this).parent().html('');
 		if ($(this).parents('#region').length) {
 			regionComplete($(this).data('code'));
 		} else {
 			$('#address > input').trigger('input');
 		}
+		$(this).parent().siblings('input').val($(this).text());
+		$(this).parent().html('');
 	});
 
 	function regionComplete(str) {
