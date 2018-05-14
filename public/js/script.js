@@ -18,7 +18,7 @@ $(function(){
 				data['region'] = region;
 			}
 			$.ajax({
-				url: '/' + type,
+				url: 'http://prettyaddress.ru/' + type,
 				data: data,
 				success: function(data) {
 					if (data.success) {
@@ -62,5 +62,18 @@ $(function(){
 		region = str;
 		$('#address > input').prop('disabled', false).focus();
 	}
+
+	$('#allRegions').click(function(){
+		$.ajax({
+			url: 'http://prettyaddress.ru/regions',
+			success: function(data) {
+				if (data.success) {
+					$.each(data.items, function(k, v) {
+						$('#region .suggestions').append('<div data-code="' + v.code + '">' + v.name + '</div>');
+					});
+				}
+			}
+		});
+	});
 
 });

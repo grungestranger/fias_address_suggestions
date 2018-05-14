@@ -1,1 +1,9 @@
-#form > div {display: inline-block;}
+html, body {height: 100%; margin: 0; padding: 0;}
+#table {display: table; height: 100%; width: 100%;}
+#cell {display: table-cell; text-align: center; vertical-align: middle;}
+#form {display: inline-block; text-align: left;}
+#form > div {display: inline-block; position: relative;}
+#region > input {width: 200px;}
+#address > input {width: 500px;}
+#allRegions {display: inline-block; width: 20px; height: 20px; background: #888; cursor: pointer;}
+.suggestions {position: absolute; width: 100%; height: 100px; overflow: scroll;}
