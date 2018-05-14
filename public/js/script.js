@@ -8,7 +8,7 @@ $(function(){
 		}
 		var input = $(this);
 		timerId = setTimeout(function(){
-			if ($(this).parents('#region').length) {
+			if (input.parents('#region').length) {
 				var type = 'regions';
 			} else {
 				var type = 'suggestions';
