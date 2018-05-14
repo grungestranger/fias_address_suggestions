@@ -72,7 +72,7 @@ SQL;
 		if (!$result) {
 			$sql = <<<SQL
 SELECT * FROM addrobj WHERE parentguid IS NULL
-	ORDER BY similarity(shortname || ', ' || formalname, :str) LIMIT 10;
+	ORDER BY similarity(shortname || ', ' || formalname, :str) DESC LIMIT 10;
 SQL;
 			$prepare = $db->prepare($sql);
 			$prepare->bindValue(':str', $str);

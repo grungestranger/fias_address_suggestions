@@ -31,7 +31,7 @@ $(function(){
 							}
 						} else {
 							if (type == 'regions') {
-								$('#region > input').prop('disabled', true);
+								$('#address > input').prop('disabled', true);
 							}
 							$.each(data.items, function(k, v) {
 								if (type == 'suggestions') {
@@ -60,7 +60,7 @@ $(function(){
 
 	function regionComplete(str) {
 		region = str;
-		$('#region > input').prop('disabled', false);
+		$('#address > input').prop('disabled', false);
 	}
 
 });
