@@ -229,6 +229,8 @@ SQL;
 			}
 		}
 	} else {
+		$trgmLimit = 0.5;
+		$db->exec('SELECT set_limit(' . $trgmLimit . ');');
 		$res = NULL;
 		while (!$res) {
 			$sql = <<<SQL
@@ -241,10 +243,8 @@ SQL;
 			$prepare->bindValue(':str', $str);
 			$prepare->execute();
 			if (!($res = $prepare->fetchAll(PDO::FETCH_ASSOC))) {
-				$sql = <<<SQL
-SELECT set_limit(show_limit() - 0.1);
-SQL;
-				$db->exec($sql);
+				$trgmLimit -= 0.1;
+				$db->exec('SELECT set_limit(' . $trgmLimit . ');');
 			}
 		}
 
