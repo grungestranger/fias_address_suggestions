@@ -6,13 +6,13 @@ $(function(){
 		if (timerId !== null) {
 			clearTimeout(timerId);
 		}
+		var input = $(this);
 		timerId = setTimeout(function(){
 			if ($(this).parents('#region').length) {
 				var type = 'regions';
 			} else {
 				var type = 'suggestions';
 			}
-			var input = $(this);
 			var data = {str: input.val()};
 			if (type == 'suggestions') {
 				data['region'] = region;
