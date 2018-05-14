@@ -34,12 +34,12 @@ try {
 	 * Region
 	 */
 
-	/*if (
+	if (
 		!mb_ereg_match('^\d{2}$', $region)
 		|| intval($region) == 0
 	) {
 		throw new Exception('Wrong region');
-	}*/
+	}
 
 	/*
 	 * Count
@@ -71,7 +71,7 @@ SQL;
 	$prepare = $db->prepare($sql);
 	$prepare->bindValue(':region', $region);
 	$prepare->execute();
-	if ($prepare->fetchAll(PDO::FETCH_ASSOC)) {
+	if (!$prepare->fetchAll(PDO::FETCH_ASSOC)) {
 		throw new Exception('Wrong region');
 	}
 	
