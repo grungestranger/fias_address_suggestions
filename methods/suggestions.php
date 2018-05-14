@@ -34,12 +34,12 @@ try {
 	 * Region
 	 */
 
-	if (
+	/*if (
 		!mb_ereg_match('^\d{2}$', $region)
 		|| intval($region) == 0
 	) {
 		throw new Exception('Wrong region');
-	}
+	}*/
 
 	/*
 	 * Count
