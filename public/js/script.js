@@ -33,6 +33,7 @@ $(function(){
 							if (type == 'regions') {
 								$('#address > input').prop('disabled', true).val('');
 							}
+							input.siblings('.suggestions').show();
 							$.each(data.items, function(k, v) {
 								if (type == 'suggestions') {
 									var str = '<div>' + v.address + '</div>';
@@ -55,6 +56,7 @@ $(function(){
 			$('#address > input').trigger('input');
 		}
 		$(this).parent().siblings('input').val($(this).text());
+		$(this).parent().hide();
 		$(this).parent().html('');
 	});
 
@@ -68,6 +70,7 @@ $(function(){
 			url: 'http://prettyaddress.ru/regions',
 			success: function(data) {
 				if (data.success) {
+					$('#region .suggestions').show();
 					$.each(data.items, function(k, v) {
 						$('#region .suggestions').append('<div data-code="' + v.code + '">' + v.name + '</div>');
 					});

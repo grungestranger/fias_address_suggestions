@@ -224,7 +224,7 @@ SQL;
 			];
 			foreach ($res as $item) {
 				$result['items'][] = [
-					'address' => $item['address'],
+					'address' => $item['address'] . ($item['final'] == 'f' ? ', ' : ''),
 				];
 			}
 		}
@@ -254,7 +254,7 @@ SQL;
 		];
 		foreach ($res as $item) {
 			$result['items'][] = [
-				'address' => $item['address'],
+				'address' => $item['address'] . ($item['final'] == 'f' ? ', ' : ''),
 			];
 		}
 	}
