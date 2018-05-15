@@ -22,7 +22,7 @@ $(function(){
 				data: data,
 				success: function(data) {
 					if (data.success) {
-						$('.suggestions').html('');
+						$('.suggestions').html('').hide();
 						if (data.final) {
 							if (type == 'suggestions') {
 								input.siblings('.suggestions').html('Полный адрес');
@@ -31,7 +31,7 @@ $(function(){
 							}
 						} else {
 							if (type == 'regions') {
-								$('#address > input').prop('disabled', true).val('');
+								$('#address > input').prop('readonly', true).val('');
 							}
 							input.siblings('.suggestions').show();
 							$.each(data.items, function(k, v) {
@@ -62,7 +62,7 @@ $(function(){
 
 	function regionComplete(str) {
 		region = str;
-		$('#address > input').prop('disabled', false).focus();
+		$('#address > input').prop('readonly', false).focus();
 	}
 
 	$('#allRegions').click(function(){
