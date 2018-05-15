@@ -25,6 +25,18 @@ try {
 		
 		// К нижнему регистру
 		$str = mb_strtolower($str);
+
+		/*
+		 * Count
+		 */
+
+		if (!isset($_GET['count'])) {
+			$limit = COUNT_HINTS;
+		} elseif (($limit = intval($_GET['count'])) < 1) {
+			$limit = 1;
+		} elseif ($limit > MAX_COUNT_HINTS) {
+			$limit = MAX_COUNT_HINTS;
+		}
 	}
 
 	/*
@@ -38,7 +50,7 @@ try {
 		$result = NULL;
 
 		/*
-		 * Full
+		 * Сheck for full compliance
 		 */
 
 		$sql = <<<SQL
@@ -69,13 +81,18 @@ SQL;
 			}
 		}
 
+		/*
+		 * Show suggestions
+		 */
+
 		if (!$result) {
 			$sql = <<<SQL
 SELECT * FROM addrobj WHERE parentguid IS NULL
-	ORDER BY similarity(shortname || ' ' || formalname, :str) DESC LIMIT 10;
+	ORDER BY similarity(shortname || ' ' || formalname, :str) DESC LIMIT :limit;
 SQL;
 			$prepare = $db->prepare($sql);
 			$prepare->bindValue(':str', $str);
+			$prepare->bindValue(':limit', $limit, PDO::PARAM_INT);
 			$prepare->execute();
 			$res = $prepare->fetchAll(PDO::FETCH_ASSOC);
 			
@@ -90,6 +107,11 @@ SQL;
 				];
 			}
 		}
+
+	/*
+	 * Show all regions
+	 */
+
 	} else {
 		$sql = <<<SQL
 SELECT * FROM addrobj WHERE parentguid IS NULL ORDER BY regioncode;
