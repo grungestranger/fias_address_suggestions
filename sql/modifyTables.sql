@@ -20,8 +20,6 @@ FROM (
 	SELECT * FROM r
 ) tmp
 WHERE tmp.aoguid = ao.aoguid;
---SELECT r.level + 1, ao1.aoguid, r.address || ', ' || shortname || ' ' || ao1.formalname
---SELECT 0, aoguid, shortname || ' ' || formalname
 
 -- Set final
 

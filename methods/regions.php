@@ -16,14 +16,12 @@ try {
 
 		$sourseStr = $str;
 
-		// Заменяем все подряд идущие пробельные знаки на один пробел + trim
 		$str = trim(mb_ereg_replace('\s+', ' ', $str));
 
 		if (mb_strlen($str) < MIN_LENGTH) {
 			throw new Exception('Trim string must be min length: ' . MIN_LENGTH);
 		}
-		
-		// К нижнему регистру
+
 		$str = mb_strtolower($str);
 
 		/*

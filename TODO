@@ -1,3 +1,2 @@
 -- NOT NULL for fields - check ON CONFLICT DO NOTHING
 -- UNIQUE address
--- LIMIT trgm to const?

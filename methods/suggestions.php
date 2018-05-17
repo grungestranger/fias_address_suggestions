@@ -3,7 +3,7 @@
 require_once realpath(__DIR__ . '/../config.php');
 
 try {
-	if (!isset($_GET['region']) || !isset($_GET['str'])) {
+	if (!isset($_GET['region'], $_GET['str'])) {
 		throw new Exception('No data');
 	}
 
@@ -20,14 +20,12 @@ try {
 
 	$sourseStr = $str;
 
-	// Заменяем все подряд идущие пробельные знаки на один пробел + trim
 	$str = trim(mb_ereg_replace('\s+', ' ', $str));
 
 	if (mb_strlen($str) < MIN_LENGTH) {
 		throw new Exception('Trim string must be min length: ' . MIN_LENGTH);
 	}
-	
-	// К нижнему регистру
+
 	$str = mb_strtolower($str);
 
 	/*
@@ -74,9 +72,12 @@ SQL;
 	if (!$prepare->fetchAll(PDO::FETCH_ASSOC)) {
 		throw new Exception('Wrong region');
 	}
-	
-	// Проверяем, содержит ли фраза полный адрес адресного объекта
-	// Отсекаем части с конца по пробелам. Убираем зяпятые в конце.
+
+	/*
+	 * Check the full address in the phrase.
+	 * Cut off the part from the end of the spaces. Remove the commas at the end.
+	 */
+
 	$sql = <<<SQL
 SELECT * FROM addrobj WHERE regioncode = :region AND lower(address) = :str LIMIT 1;
 SQL;
@@ -98,6 +99,10 @@ SQL;
 		$part = mb_strrchr($part, ' ', TRUE);
 	}
 
+	/*
+	 * If the full address is found.
+	 */
+
 	if ($parent) {
 		$str = mb_substr($str, mb_strlen($parent['address']));
 		if (mb_substr($str, 0, 1) == ',') {
@@ -105,10 +110,17 @@ SQL;
 		}
 		$str = trim($str);
 
-		// Если финальный объект - ищем дома
+		/*
+		 * If the object is final - search houses.
+		 */
+
 		if ($parent['final'] == 't') {		
 			$result = NULL;
-			// Проверяем на полное соответствие
+
+			/*
+			 * Check for full compliance.
+			 */
+
 			if ($str != '') {
 				$sql = <<<SQL
 SELECT * FROM house WHERE aoguid = :aoguid AND lower(number) = :str LIMIT 1;
@@ -135,6 +147,10 @@ SQL;
 					}
 				}
 			}
+
+			/*
+			 * Suggestions for houses.
+			 */
 
 			if (!$result) {
 				if ($str == '') {
@@ -165,9 +181,12 @@ SQL;
 							'address' => $parent['address'] . ', ' . $item['number'],
 						];
 					}
-				// Если у финального объекта нет домов
+
+				/*
+				 * If the final object has no houses.
+				 */
+
 				} else {
-					// Если поисковая строка равна полному адресу финального объекта
 					if ($sourseStr == $parent['address']) {
 						$result = [
 							'final' => TRUE,
@@ -184,7 +203,11 @@ SQL;
 					}
 				}
 			}
-		// Иначе выводим подсказки по адресам
+
+		/*
+		 * Suggestions for addresses.
+		 */
+
 		} else {
 			if ($str != '') {
 				$sql = <<<SQL
@@ -228,6 +251,11 @@ SQL;
 				];
 			}
 		}
+
+	/*
+	 * If the full address is not found. Suggestions for addresses.
+	 */
+
 	} else {
 		$trgmLimit = 0.5;
 		$db->exec('SELECT set_limit(' . $trgmLimit . ');');
