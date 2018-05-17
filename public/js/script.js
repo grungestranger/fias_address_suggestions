@@ -8,61 +8,66 @@ $(function(){
 		}
 		var input = $(this);
 		timerId = setTimeout(function(){
-			if (input.parents('#region').length) {
-				var type = 'regions';
-			} else {
-				var type = 'suggestions';
-			}
-			var data = {str: input.val()};
-			if (type == 'suggestions') {
-				data['region'] = region;
-			}
-			$.ajax({
-				url: 'http://prettyaddress.ru/' + type,
-				data: data,
-				success: function(data) {
-					if (data.success) {
-						$('.suggestions').html('').hide();
-						if (data.final) {
-							if (type == 'suggestions') {
-								input.siblings('.suggestions').html('Полный адрес');
-							} else {
-								regionComplete(data.code);
-							}
-						} else {
-							if (type == 'regions') {
-								$('#address > input').prop('readonly', true).val('');
-							}
-							input.siblings('.suggestions').show();
-							$.each(data.items, function(k, v) {
-								if (type == 'suggestions') {
-									var str = '<div>' + v.address + '</div>';
-								} else {
-									var str = '<div data-code="' + v.code + '">' + v.name + '</div>';
-								}
-								input.siblings('.suggestions').append(str);
-							});
-						}
-					}
-				}
-			});
+			getSuggestions(input);
 		}, 200);
 	});
 
+	function getSuggestions(input) {
+		if (input.parents('#region').length) {
+			var type = 'regions';
+		} else {
+			var type = 'suggestions';
+		}
+		var data = {str: input.val()};
+		if (type == 'suggestions') {
+			data['region'] = region;
+		}
+		$.ajax({
+			url: 'http://prettyaddress.ru/' + type,
+			data: data,
+			success: function(data) {
+				if (data.success) {
+					$('.suggestions').html('').hide();
+					if (data.final) {
+						if (type == 'suggestions') {
+							$('#form').addClass('completed');
+						} else {
+							regionComplete(data.code);
+						}
+					} else {
+						$('#form').removeClass('completed');
+						if (type == 'regions') {
+							$('#address > input').prop('readonly', true).val('');
+						}
+						input.siblings('.suggestions').show();
+						$.each(data.items, function(k, v) {
+							if (type == 'suggestions') {
+								var str = '<div>' + v.address + '</div>';
+							} else {
+								var str = '<div data-code="' + v.code + '">' + v.name + '</div>';
+							}
+							input.siblings('.suggestions').append(str);
+						});
+					}
+				}
+			}
+		});
+	}
+
 	$(document).on('click', '.suggestions > div', function(){
+		$(this).parent().siblings('input').val($(this).text());
 		if ($(this).parents('#region').length) {
 			regionComplete($(this).data('code'));
 		} else {
-			$('#address > input').trigger('input');
+			getSuggestions($('#address > input'));
 		}
-		$(this).parent().siblings('input').val($(this).text());
-		$(this).parent().hide();
-		$(this).parent().html('');
+		$('.suggestions').html('').hide();
 	});
 
-	function regionComplete(str) {
-		region = str;
-		$('#address > input').prop('readonly', false).focus();
+	function regionComplete(code) {
+		region = code;
+		$('#form').removeClass('completed');
+		$('#address > input').prop('readonly', false).val('').focus();
 	}
 
 	$('#allRegions').click(function(){
@@ -77,6 +82,19 @@ $(function(){
 				}
 			}
 		});
+	});
+
+	var closeFlag = 0;
+	$('.suggestions').click(function(){
+		closeFlag = 1;
+	});
+
+	$('body').click(function(){
+		if (closeFlag) {
+			closeFlag = 0;
+		} else {
+			$('.suggestions').html('').hide();
+		}
 	});
 
 });
