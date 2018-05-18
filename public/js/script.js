@@ -97,4 +97,6 @@ $(function(){
 		}
 	});
 
+	$('.suggestions').niceScroll();
+
 });
