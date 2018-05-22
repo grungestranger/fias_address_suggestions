@@ -4,7 +4,7 @@
  * DB connection string.
  */
 
-const DBSTRING = 'pgsql:host=localhost;port=5432;dbname=fias;user=fias;password=123456';
+const DBSTRING = 'pgsql:host=localhost;port=5432;dbname=fias;user=fias;password=password';
 
 /*
  * The minimum length of the search phrase for tips.
