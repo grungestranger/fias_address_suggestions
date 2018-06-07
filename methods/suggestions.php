@@ -110,108 +110,122 @@ SQL;
 		}
 		$str = trim($str);
 
+		$result = NULL;
+
 		/*
-		 * If the object is final - search houses.
+		 * Search houses.
 		 */
 
-		if ($parent['final'] == 't') {		
-			$result = NULL;
+		/*
+		 * Check for full compliance.
+		 */
 
-			/*
-			 * Check for full compliance.
-			 */
-
-			if ($str != '') {
-				$sql = <<<SQL
+		if ($str != '') {
+			$sql = <<<SQL
 SELECT * FROM house WHERE aoguid = :aoguid AND lower(number) = :str LIMIT 1;
 SQL;
-				$prepare = $db->prepare($sql);
-				$prepare->bindValue(':aoguid', $parent['aoguid']);
-				$prepare->bindValue(':str', $str);
-				$prepare->execute();
-				if ($res = $prepare->fetchAll(PDO::FETCH_ASSOC)) {
-					$finalStr = $parent['address'] . ', ' . $res[0]['number'];
-					if ($sourseStr == $finalStr) {
-						$result = [
-							'final' => TRUE,
-						];
-					} else {
-						$result = [
-							'final' => FALSE,
-							'items' => [
-								[
-									'address' => $finalStr,
-								],
-							],
-						];
-					}
-				}
-			}
-
-			/*
-			 * Suggestions for houses.
-			 */
-
-			if (!$result) {
-				if ($str == '') {
-					$sql = <<<SQL
-SELECT * FROM house WHERE aoguid = :aoguid
-	ORDER BY lower(number) LIMIT :limit;
-SQL;
+			$prepare = $db->prepare($sql);
+			$prepare->bindValue(':aoguid', $parent['aoguid']);
+			$prepare->bindValue(':str', $str);
+			$prepare->execute();
+			if ($res = $prepare->fetchAll(PDO::FETCH_ASSOC)) {
+				$finalStr = $parent['address'] . ', ' . $res[0]['number'];
+				if ($sourseStr == $finalStr) {
+					$result = [
+						'final' => TRUE,
+					];
 				} else {
-					$sql = <<<SQL
-SELECT * FROM house WHERE aoguid = :aoguid
-	ORDER BY similarity(number, :str) DESC LIMIT :limit;
-SQL;
-				}
-				$prepare = $db->prepare($sql);
-				$prepare->bindValue(':aoguid', $parent['aoguid']);
-				$prepare->bindValue(':limit', $limit, PDO::PARAM_INT);
-				if ($str != '') {
-					$prepare->bindValue(':str', $str);
-				}
-				$prepare->execute();
-				if ($res = $prepare->fetchAll(PDO::FETCH_ASSOC)) {
 					$result = [
 						'final' => FALSE,
-						'items' => [],
-					];
-					foreach ($res as $item) {
-						$result['items'][] = [
-							'address' => $parent['address'] . ', ' . $item['number'],
-						];
-					}
-
-				/*
-				 * If the final object has no houses.
-				 */
-
-				} else {
-					if ($sourseStr == $parent['address']) {
-						$result = [
-							'final' => TRUE,
-						];
-					} else {
-						$result = [
-							'final' => FALSE,
-							'items' => [
-								[
-									'address' => $parent['address'],
-								],
+						'items' => [
+							[
+								'address' => $finalStr,
 							],
-						];
-					}
+						],
+					];
 				}
 			}
+		}
 
 		/*
-		 * Suggestions for addresses.
+		 * Suggestions for houses.
 		 */
 
-		} else {
+		if (!$result) {
+			if ($str == '') {
+				$sql = <<<SQL
+SELECT * FROM house WHERE aoguid = :aoguid
+ORDER BY lower(number) LIMIT :limit;
+SQL;
+			} else {
+				$sql = <<<SQL
+SELECT *, similarity(number, :str) AS sim FROM house WHERE aoguid = :aoguid
+ORDER BY sim DESC LIMIT :limit;
+SQL;
+			}
+			$prepare = $db->prepare($sql);
+			$prepare->bindValue(':aoguid', $parent['aoguid']);
+			$prepare->bindValue(':limit', $limit, PDO::PARAM_INT);
+			if ($str != '') {
+				$prepare->bindValue(':str', $str);
+			}
+			$prepare->execute();
+
+			$houses = [];
+
+			if ($res = $prepare->fetchAll(PDO::FETCH_ASSOC)) {
+				foreach ($res as $item) {
+					$arr = [
+						'address' => $parent['address'] . ', ' . $item['number'],
+					];
+					if ($parent['final'] != 't' && $str != '') {
+						$arr['sim'] = $item['sim'];
+					}
+					$houses[] = $arr;
+				}
+				if ($parent['final'] == 't') {
+					$result = [
+						'final' => FALSE,
+						'items' => $houses,
+					];
+				}
+
+			/*
+			 * If the final object has no houses.
+			 */
+
+			} elseif ($parent['final'] == 't') {
+				if ($sourseStr == $parent['address']) {
+					$result = [
+						'final' => TRUE,
+					];
+				} else {
+					$result = [
+						'final' => FALSE,
+						'items' => [
+							[
+								'address' => $parent['address'],
+							],
+						],
+					];
+				}
+/*
+				$result = [
+					'final' => FALSE,
+					'items' => [],
+				];
+*/
+			}
+		}
+
+		/*
+		 * Suggestions for addresses and houses.
+		 */
+
+		if (!$result) {
 			if ($str != '') {
 				$sql = <<<SQL
-SELECT * FROM (
+SELECT *, similarity(substring(address, :parAddrLen), :str) AS sim FROM (
 	WITH RECURSIVE r AS (
 		SELECT * FROM addrobj WHERE aoguid = :aoguid
 		UNION ALL
@@ -223,7 +237,7 @@ SELECT * FROM (
 	SELECT * FROM r
 ) as tmp
 WHERE aoguid != :aoguid
-ORDER BY similarity(substring(address, :parAddrLen), :str) DESC LIMIT :limit;
+ORDER BY sim DESC LIMIT :limit;
 SQL;
 			} else {
 				$sql = <<<SQL
@@ -240,16 +254,36 @@ SQL;
 			}
 			$prepare->execute();
 			$res = $prepare->fetchAll(PDO::FETCH_ASSOC);
+
+			$addresses = [];
+			foreach ($res as $item) {
+				$arr = [
+					'address' => $item['address'],
+				];
+				if ($houses && $str != '') {
+					$arr['sim'] = $item['sim'];
+				}
+				$addresses[] = $arr;
+			}
+
+			$suggestions = array_merge($houses, $addresses);
+
+			if ($houses && $addresses && $str != '') {
+				usort($suggestions, function ($a, $b) {
+					return $a['sim'] - $b['sim'] > 0 ? -1 : 1;
+				});
+			}
+			if ($houses && $str != '') {
+				foreach ($suggestions as &$item) {
+					unset($item['sim']);
+				}
+				unset($item);
+			}
 			
 			$result = [
 				'final' => FALSE,
-				'items' => [],
+				'items' => array_slice($suggestions, 0, $limit),
 			];
-			foreach ($res as $item) {
-				$result['items'][] = [
-					'address' => $item['address'],
-				];
-			}
 		}
 
 	/*

@@ -37,3 +37,11 @@ Install php and unrar.
 ```shell
 sudo apt install php-fpm php-pgsql php-mbstring php-xml php-curl unrar
 ```
+Running the installation script.
+```shell
+nohup php install.php &
+```
+When the installation is complete, create postgres buffer.
+```shell
+php buffer.php
+```
