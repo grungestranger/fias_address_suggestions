@@ -97,6 +97,10 @@ $(function(){
 		}
 	});
 
-	$('.suggestions').niceScroll();
+	$('.suggestions').niceScroll({
+		cursorcolor: '#c6d0d9',
+		cursorwidth: '3px',
+		autohidemode: false
+	});
 
 });
