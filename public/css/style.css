@@ -3,16 +3,17 @@ html, body {height: 100%; margin: 0; padding: 0; background: #f1f4f9;}
 #cell {display: table-cell; text-align: center; vertical-align: middle;}
 #form {display: inline-block; text-align: left; font-family: 'PT Sans', sans-serif; font-size: 13px; color: #707088; padding: 0 18px;}
 #form.completed {background: url('../img/checked.png') center right 4px no-repeat;}
-#form > div {display: inline-block; position: relative; border-radius: 4px; box-shadow: 0 0 10px rgba(100,100,100,0.3);}
-#form input {font-family: 'PT Sans', sans-serif; font-size: 13px; color: #707088; height: 23px; line-height: 23px; border: none; outline: none; margin: 0; padding: 0 10px; background: #fff;}
+#form > div {display: inline-block; position: relative;}
+#form input {z-index: 100; position: relative; border-radius: 4px; box-shadow: 0 0 10px rgba(100,100,100,0.3); font-family: 'PT Sans', sans-serif; font-size: 13px; color: #707088; height: 23px; line-height: 23px; border: none; outline: none; margin: 0; padding: 0 10px; background: #fff;}
 #form input::-webkit-input-placeholder {color: #707088;}
-#form input:-moz-placeholder {color: #707088;}
-#region > input {width: 180px; border-radius: 4px 0 0 4px;}
+#region > input {width: 180px; padding-right: 38px}
 #region {margin-right: 8px;}
-#address > input {width: 480px; border-radius: 4px;}
+#address > input {width: 480px;}
 #address > input:read-only {}
-#allRegions {display: inline-block; vertical-align: top; width: 28px; height: 23px; background: #7894ff url('../img/search.png') center no-repeat; cursor: pointer; border-radius: 0 4px 4px 0;}
-.suggestions {position: absolute; width: 100%; max-height: 150px; overflow: auto; display: none; background: #fff url('../img/scroll.png') center right 2px repeat-y; border-radius: 0 0 4px 4px;}
+#allRegions {position: absolute; top: 0; right: 0; z-index: 101; width: 28px; height: 23px; background: #7894ff url('../img/search.png') center no-repeat; cursor: pointer; border-radius: 0 4px 4px 0;}
+.suggestions {position: absolute; width: 100%; max-height: 150px; overflow: auto; display: none; border-radius: 0 0 4px 4px; background: #fff;}
 #region .suggestions {width: 200px;}
-.suggestions > div {height: 22px; overflow: hidden; white-space: nowrap; line-height: 22px; padding: 0 10px; margin-right: 5px;}
-.suggestions > div:hover {background: #e0e9f0; cursor: pointer;}
+.suggestions > div {height: 22px; overflow: hidden; white-space: nowrap; line-height: 22px; padding: 0 10px; cursor: pointer;}
+.suggestions > div:hover {background: #e0e9f0;}
+
+.nicescroll-rails-vr {border-radius: 0 0 4px; background: #fff url('../img/scroll.png') center repeat-y; padding: 0 1px;}

@@ -1,16 +1,23 @@
 $(function(){
 
-	var region, timerId;
+	var region, timerId, request;
 
 	$('#form input').on('input', function(){
-		if (timerId !== null) {
+		if (timerId !== undefined) {
 			clearTimeout(timerId);
 		}
 		var input = $(this);
 		timerId = setTimeout(function(){
+			requestAbort();
 			getSuggestions(input);
 		}, 200);
 	});
+
+	function requestAbort() {
+		if (request !== undefined) {
+			request.abort();
+		}
+	}
 
 	function getSuggestions(input) {
 		if (input.parents('#region').length) {
@@ -22,7 +29,7 @@ $(function(){
 		if (type == 'suggestions') {
 			data['region'] = region;
 		}
-		$.ajax({
+		request = $.ajax({
 			url: 'http://prettyaddress.ru/' + type,
 			data: data,
 			success: function(data) {
@@ -55,6 +62,7 @@ $(function(){
 	}
 
 	$(document).on('click', '.suggestions > div', function(){
+		requestAbort();
 		$(this).parent().siblings('input').val($(this).text());
 		if ($(this).parents('#region').length) {
 			regionComplete($(this).data('code'));
@@ -71,7 +79,8 @@ $(function(){
 	}
 
 	$('#allRegions').click(function(){
-		$.ajax({
+		requestAbort();
+		request = $.ajax({
 			url: 'http://prettyaddress.ru/regions',
 			success: function(data) {
 				if (data.success) {
@@ -100,6 +109,7 @@ $(function(){
 	$('.suggestions').niceScroll({
 		cursorcolor: '#c6d0d9',
 		cursorwidth: '3px',
+		cursorborder: 'none',
 		autohidemode: false
 	});
 
