@@ -16,4 +16,5 @@ html, body {height: 100%; margin: 0; padding: 0; background: #f1f4f9;}
 .suggestions > div {height: 22px; overflow: hidden; white-space: nowrap; line-height: 22px; padding: 0 10px; cursor: pointer;}
 .suggestions > div:hover {background: #e0e9f0;}
 
-.nicescroll-rails-vr {border-radius: 0 0 4px; background: #fff url('../img/scroll.png') center repeat-y; padding: 0 1px; margin-left: -2px;}
+.nicescroll-rails-vr {border-radius: 0 0 4px; background: #fff url('../img/scroll.png') center repeat-y;}
+.nicescroll-cursors {width: 3px !important; margin-right: 1px;}
