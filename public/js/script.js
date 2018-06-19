@@ -108,7 +108,7 @@ $(function(){
 
 	$('.suggestions').niceScroll({
 		cursorcolor: '#c6d0d9',
-		cursorwidth: '5px',
+		cursorwidth: '3px',
 		cursorborder: 'none',
 		autohidemode: false
 	});
